@@ -266,11 +266,18 @@ const HomeScreen = ({ navigation }) => {
       }
 
       // Send notification to partner
-      await sendRingNotification({
+      const result = await sendRingNotification({
         partnerId,
         partnerName,
         senderName: userName,
       });
+
+      if (!result?.delivered) {
+        Alert.alert(
+          'Ring pending',
+          'We couldn\'t reach your partner\'s device. Ask them to open the app and allow notifications, then try again.'
+        );
+      }
 
       // Enhanced pulse animation on press
       Animated.sequence([

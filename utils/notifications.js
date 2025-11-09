@@ -180,9 +180,16 @@ const fetchPartnerNotificationTargets = async (partnerId) => {
   };
 };
 
-const dispatchExpoNotification = async (partnerId, tokens, payload, fallbackMessage) => {
+const dispatchExpoNotification = async (
+  partnerId,
+  tokens,
+  payload,
+  fallbackMessage = null
+) => {
   if (!tokens.length) {
-    await notifyLocally(payload.title, fallbackMessage, payload.data);
+    if (fallbackMessage) {
+      await notifyLocally(payload.title, fallbackMessage, payload.data);
+    }
     return { delivered: 0, tokens: [] };
   }
 
@@ -234,7 +241,7 @@ const dispatchExpoNotification = async (partnerId, tokens, payload, fallbackMess
     await removeInvalidTokens(partnerId, invalidTokens);
   }
 
-  if (!deliveredCount) {
+  if (!deliveredCount && fallbackMessage) {
     await notifyLocally(payload.title, fallbackMessage, payload.data);
   }
 
@@ -245,7 +252,7 @@ export const sendRingNotification = async ({ partnerId, partnerName, senderName 
   try {
     const { partnerData, tokens } = await fetchPartnerNotificationTargets(partnerId);
 
-    const title = "Sun's Thinking of the Moon 💕";
+    const title = "Sun's Thinking of the Moon \uD83D\uDC95";
     const body = senderName
       ? `${senderName} is thinking of you!`
       : 'Your partner is thinking of you!';
@@ -261,10 +268,7 @@ export const sendRingNotification = async ({ partnerId, partnerName, senderName 
           senderName: senderName || '',
           partnerName: partnerName || partnerData.name || '',
         },
-      },
-      partnerName
-        ? `Ring sent! Ask ${partnerName} to enable notifications to receive it instantly.`
-        : 'Ring sent! Ask your partner to enable notifications to receive it instantly.'
+      }
     );
   } catch (error) {
     console.error('[Notifications] Failed to send ring notification:', error);
@@ -280,7 +284,7 @@ export const sendPartnerLinkedNotification = async ({
   try {
     const { partnerData, tokens } = await fetchPartnerNotificationTargets(partnerId);
 
-    const title = 'You are now linked! 💖';
+    const title = 'You are now linked! \uD83D\uDC96';
     const body = senderName
       ? `${senderName} just linked hearts with you.`
       : 'Your partner just linked hearts with you.';
