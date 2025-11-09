@@ -1,5 +1,5 @@
 diff --git a/node_modules/expo-firebase-core/android/build.gradle b/node_modules/expo-firebase-core/android/build.gradle
-index 9bda09b..9dbd6c2 100644
+index 9bda09b..68e2b31 100644
 --- a/node_modules/expo-firebase-core/android/build.gradle
 +++ b/node_modules/expo-firebase-core/android/build.gradle
 @@ -37,7 +37,7 @@ buildscript {
@@ -11,3 +11,149 @@ index 9bda09b..9dbd6c2 100644
    from android.sourceSets.main.java.srcDirs
  }
  
+@@ -59,6 +59,7 @@ afterEvaluate {
+ }
+ 
+ android {
++  namespace "expo.modules.firebase.core"
+   compileSdkVersion safeExtGet("compileSdkVersion", 31)
+ 
+   compileOptions {
+diff --git a/node_modules/expo-firebase-core/android/src/main/java/expo/modules/firebase/core/FirebaseCoreModule.java b/node_modules/expo-firebase-core/android/src/main/java/expo/modules/firebase/core/FirebaseCoreModule.java
+deleted file mode 100644
+index 0bb4e53..0000000
+--- a/node_modules/expo-firebase-core/android/src/main/java/expo/modules/firebase/core/FirebaseCoreModule.java
++++ /dev/null
+@@ -1,58 +0,0 @@
+-// Copyright 2020-present 650 Industries. All rights reserved.
+-
+-package expo.modules.firebase.core;
+-
+-import android.content.Context;
+-
+-import androidx.annotation.Nullable;
+-
+-import java.util.Map;
+-import java.util.HashMap;
+-
+-import com.google.firebase.FirebaseApp;
+-import com.google.firebase.FirebaseOptions;
+-
+-import expo.modules.core.ExportedModule;
+-import expo.modules.core.ModuleRegistry;
+-
+-public class FirebaseCoreModule extends ExportedModule {
+-  private static final String NAME = "ExpoFirebaseCore";
+-  private static final String DEFAULT_APP_NAME = "[DEFAULT]";
+-
+-  private ModuleRegistry mModuleRegistry;
+-  private Map<String, String> mDefaultOptions;
+-
+-  public FirebaseCoreModule(Context context) {
+-    super(context);
+-  }
+-
+-  @Nullable
+-  public Map<String, Object> getConstants() {
+-    FirebaseCoreInterface firebaseCore = mModuleRegistry.getModule(FirebaseCoreInterface.class);
+-    FirebaseApp defaultApp = firebaseCore.getDefaultApp();
+-
+-    final Map<String, Object> constants = new HashMap<>();
+-    constants.put("DEFAULT_APP_NAME", (defaultApp != null) ? defaultApp.getName() : DEFAULT_APP_NAME);
+-
+-    if (mDefaultOptions == null) {
+-      FirebaseOptions options = (defaultApp != null) ? defaultApp.getOptions() : null;
+-      mDefaultOptions = FirebaseCoreOptions.toJSON(options);
+-    }
+-
+-    if (mDefaultOptions != null) {
+-      constants.put("DEFAULT_APP_OPTIONS", mDefaultOptions);
+-    }
+-
+-    return constants;
+-  }
+-
+-  @Override
+-  public String getName() {
+-    return NAME;
+-  }
+-
+-  @Override
+-  public void onCreate(ModuleRegistry moduleRegistry) {
+-    mModuleRegistry = moduleRegistry;
+-  }
+-}
+diff --git a/node_modules/expo-firebase-core/android/src/main/java/expo/modules/firebase/core/FirebaseCoreModule.kt b/node_modules/expo-firebase-core/android/src/main/java/expo/modules/firebase/core/FirebaseCoreModule.kt
+new file mode 100644
+index 0000000..a9f0657
+--- /dev/null
++++ b/node_modules/expo-firebase-core/android/src/main/java/expo/modules/firebase/core/FirebaseCoreModule.kt
+@@ -0,0 +1,33 @@
++package expo.modules.firebase.core
++
++import expo.modules.kotlin.modules.Module
++import expo.modules.kotlin.modules.ModuleDefinition
++
++private const val DEFAULT_APP_NAME = "[DEFAULT]"
++
++class FirebaseCoreModule : Module() {
++  private var defaultOptionsCache: Map<String, String>? = null
++
++  override fun definition() = ModuleDefinition {
++    Name("ExpoFirebaseCore")
++
++    Constants {
++      val firebaseCore = appContext.legacyModule<FirebaseCoreInterface>()
++      val defaultApp = firebaseCore?.defaultApp
++
++      val constants = mutableMapOf<String, Any?>()
++      constants["DEFAULT_APP_NAME"] = defaultApp?.name ?: DEFAULT_APP_NAME
++
++      if (defaultOptionsCache == null) {
++        defaultOptionsCache = FirebaseCoreOptions.toJSON(defaultApp?.options)
++      }
++
++      defaultOptionsCache?.let {
++        constants["DEFAULT_APP_OPTIONS"] = it
++      }
++
++      constants
++    }
++  }
++}
++
+diff --git a/node_modules/expo-firebase-core/android/src/main/java/expo/modules/firebase/core/FirebaseCorePackage.java b/node_modules/expo-firebase-core/android/src/main/java/expo/modules/firebase/core/FirebaseCorePackage.java
+index 25ca450..51143d3 100644
+--- a/node_modules/expo-firebase-core/android/src/main/java/expo/modules/firebase/core/FirebaseCorePackage.java
++++ b/node_modules/expo-firebase-core/android/src/main/java/expo/modules/firebase/core/FirebaseCorePackage.java
+@@ -6,7 +6,6 @@ import java.util.Collections;
+ import java.util.List;
+ 
+ import expo.modules.core.BasePackage;
+-import expo.modules.core.ExportedModule;
+ import expo.modules.core.interfaces.InternalModule;
+ 
+ public class FirebaseCorePackage extends BasePackage {
+@@ -14,9 +13,4 @@ public class FirebaseCorePackage extends BasePackage {
+   public List<InternalModule> createInternalModules(Context context) {
+     return Collections.singletonList((InternalModule) new FirebaseCoreService(context));
+   }
+-
+-  @Override
+-  public List<ExportedModule> createExportedModules(Context context) {
+-    return Collections.singletonList((ExportedModule) new FirebaseCoreModule(context));
+-  }
+ }
+diff --git a/node_modules/expo-firebase-core/expo-module.config.json b/node_modules/expo-firebase-core/expo-module.config.json
+new file mode 100644
+index 0000000..9f58062
+--- /dev/null
++++ b/node_modules/expo-firebase-core/expo-module.config.json
+@@ -0,0 +1,7 @@
++{
++  "platforms": ["android"],
++  "android": {
++    "modules": ["expo.modules.firebase.core.FirebaseCoreModule"]
++  }
++}
++
