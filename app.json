@@ -24,7 +24,8 @@
         "backgroundColor": "#FCEEF2"
       },
       "package": "com.twogether.app",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "blockScreenshots": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
