@@ -20,6 +20,28 @@ const EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
 let lastRegisteredUserId = null;
 let lastRegisteredToken = null;
 
+const collectExistingTokens = (data = {}) => {
+  const tokens = [];
+
+  if (Array.isArray(data.expoPushTokens)) {
+    tokens.push(...data.expoPushTokens);
+  }
+
+  if (typeof data.expoPushToken === 'string') {
+    tokens.push(data.expoPushToken);
+  }
+
+  if (Array.isArray(data.pushTokens)) {
+    tokens.push(...data.pushTokens);
+  }
+
+  if (typeof data.pushToken === 'string') {
+    tokens.push(data.pushToken);
+  }
+
+  return Array.from(new Set(tokens.filter(Boolean)));
+};
+
 const getExpoProjectId = () => {
   const easProjectId =
     Constants?.expoConfig?.extra?.eas?.projectId ||
@@ -39,33 +61,52 @@ const saveExpoPushToken = async (userId, token) => {
     return;
   }
 
-  await db
-    .collection('users')
-    .doc(userId)
-    .set(
-      {
-        expoPushTokens: firebase.firestore.FieldValue.arrayUnion(token),
-        notificationsEnabled: true,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
+  const userRef = db.collection('users').doc(userId);
+  const userSnap = await userRef.get();
+  const existingData = userSnap.exists ? userSnap.data() || {} : {};
+  const tokens = collectExistingTokens(existingData);
+
+  if (!tokens.includes(token)) {
+    tokens.push(token);
+  }
+
+  await userRef.set(
+    {
+      expoPushTokens: tokens,
+      notificationsEnabled: true,
+      updatedAt: new Date().toISOString(),
+      expoPushToken: firebase.firestore.FieldValue.delete(),
+      pushToken: firebase.firestore.FieldValue.delete(),
+      pushTokens: firebase.firestore.FieldValue.delete(),
+    },
+    { merge: true }
+  );
 };
 
-const removeInvalidTokens = async (userId, tokens) => {
-  if (!userId || !tokens?.length) {
+const removeInvalidTokens = async (userId, tokensToRemove) => {
+  if (!userId || !tokensToRemove?.length) {
     return;
   }
 
-  await db
-    .collection('users')
-    .doc(userId)
-    .set(
-      {
-        expoPushTokens: firebase.firestore.FieldValue.arrayRemove(...tokens),
-      },
-      { merge: true }
-    );
+  const userRef = db.collection('users').doc(userId);
+  const userSnap = await userRef.get();
+
+  if (!userSnap.exists) {
+    return;
+  }
+
+  const existingTokens = collectExistingTokens(userSnap.data() || {});
+  const filteredTokens = existingTokens.filter(
+    (token) => !tokensToRemove.includes(token)
+  );
+
+  await userRef.set(
+    {
+      expoPushTokens: filteredTokens,
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true }
+  );
 };
 
 const notifyLocally = async (title, body, data = {}) => {
@@ -170,9 +211,7 @@ const fetchPartnerNotificationTargets = async (partnerId) => {
   }
 
   const partnerData = partnerSnap.data() || {};
-  const tokens = Array.isArray(partnerData.expoPushTokens)
-    ? partnerData.expoPushTokens.filter(Boolean)
-    : [];
+  const tokens = collectExistingTokens(partnerData);
 
   return {
     partnerData,
